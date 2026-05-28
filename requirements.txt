@@ -1,0 +1,6 @@
+fredapi==0.5.2
+pandas==2.3.3
+plotly==6.7.0
+pytest==9.0.3
+python-dotenv==1.2.2
+streamlit==1.58.0
