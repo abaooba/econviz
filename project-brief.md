@@ -3,7 +3,7 @@
 ## Project Overview
 
 - **Field:** Data Science / Economics / Finance
-- **Folder:** `~/Documents/Claude/Projects/econviz/`
+- **Folder:** `Projects/econviz/` (planning) + `abaooba/econviz` (code)
 - **Status:** in_progress
 - **Start Date:** 2026-05-28
 - **Target Completion:** 2026-06-10 (~13 days)
@@ -71,12 +71,14 @@ Write README, add docstrings, deploy to Streamlit Cloud, verify secrets manageme
 ## Progress Log
 
 | Date | Phase | Summary |
-|------|-------|---------|
+|------|-------|----------|
 | 2026-05-28 | Phase 1 — Setup | Created project folder structure (src/, tests/, data/, assets/), .gitignore, requirements.txt (streamlit, fredapi, pandas, plotly, python-dotenv, pytest), src/config.py (env var loader with clear error), src/app.py (Streamlit stub with title + sidebar placeholder), tests/test_fred_connection.py (skips gracefully without API key). All Phase 1 tasks complete. |
+| 2026-05-30 | Phase 2 — Data (Day 3) | Created src/indicators.py (FRED series ID registry for 5 indicators + recession series) and src/fetch.py (fetch_series + fetch_all_indicators with graceful empty-Series fallback when API key absent). Confirmed no code exists in claude-portfolio — all code correctly lives in abaooba/econviz per project rules. |
 
 ---
 
 ## Notes
 
 - FRED API key required (free at https://fred.stlouisfed.org/docs/api/api_key.html) — see Pending User Requests in CLAUDE.md
-- GitHub repo needed for Streamlit Cloud deployment — Ares should create one before Phase 5
+- GitHub repo `abaooba/econviz` created and in use — Streamlit Cloud deployment needs Ares to connect it before Phase 5
+- All source code commits go to `abaooba/econviz` exclusively; `claude-portfolio` holds only planning/scheduling files
