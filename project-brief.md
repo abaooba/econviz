@@ -6,7 +6,7 @@
 - **Folder:** `Projects/econviz/` (planning) + `abaooba/econviz` (code)
 - **Status:** in_progress
 - **Start Date:** 2026-05-28
-- **Target Completion:** 2026-06-10 (~13 days)
+- **Target Completion:** 2026-06-10
 
 ---
 
@@ -75,6 +75,7 @@ Write README, add docstrings, deploy to Streamlit Cloud, verify secrets manageme
 | 2026-05-28 | Phase 1 — Setup | Created project folder structure (src/, tests/, data/, assets/), .gitignore, requirements.txt (streamlit, fredapi, pandas, plotly, python-dotenv, pytest), src/config.py (env var loader with clear error), src/app.py (Streamlit stub with title + sidebar placeholder), tests/test_fred_connection.py (skips gracefully without API key). All Phase 1 tasks complete. |
 | 2026-05-30 | Phase 2 — Data (Day 3) | Created src/indicators.py (FRED series ID registry for 5 indicators + recession series) and src/fetch.py (fetch_series + fetch_all_indicators with graceful empty-Series fallback when API key absent). |
 | 2026-05-30 | Phase 2 — Data (Day 4) | Added fetch_recession_bands to src/fetch.py (converts USREC binary series to list of {start, end} recession band dicts); wrapped fetch_all_indicators and fetch_recession_bands with @st.cache_data(ttl=3600); created src/transform.py with compute_yoy_change (CPI level → YoY %) and resample_to_monthly (forward-fill quarterly GDP to monthly frequency). FRED API key blocker resolved. |
+| 2026-05-31 | Phase 2 — Data (Day 5) | Added conftest.py (mocks @st.cache_data for pytest, adds root to sys.path); created tests/test_transform.py (9 assertions across compute_yoy_change and resample_to_monthly using synthetic Series); created tests/test_fetch.py (7 assertions testing fetch_series no-key fallback and fetch_recession_bands logic via mocked fetch_series). Phase 2 complete. |
 
 ---
 
