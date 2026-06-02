@@ -16,7 +16,7 @@ This file maps each calendar day to a specific set of tasks. The `project-execut
 | 6 | 2026-06-03 | Phase 3 — UI | Streamlit app layout: page config, sidebar (date picker, indicator checkboxes), tab structure | complete |
 | 7 | 2026-06-04 | Phase 3 — UI | `src/charts.py`: `make_line_chart` with recession shading, `make_summary_card` | complete |
 | 8 | 2026-06-05 | Phase 3 — UI | Individual indicator pages: metric cards + charts + plain-English blurbs + error state handling | complete |
-| 9 | 2026-06-06 | Phase 4 — Features | `make_comparison_chart` (dual-axis), Compare tab in app with correlation metric | pending |
+| 9 | 2026-06-06 | Phase 4 — Features | `make_comparison_chart` (dual-axis), Compare tab in app with correlation metric | complete |
 | 10 | 2026-06-07 | Phase 4 — Features | CSV export buttons (per-indicator + combined), filename formatting | pending |
 | 11 | 2026-06-08 | Phase 4 — Features | Frequency radio toggle (Monthly/Quarterly/Annual), header + footer polish | pending |
 | 12 | 2026-06-09 | Phase 5 — Deploy | `README.md`, docstrings + type hints on all public functions, `src/config.py` Streamlit secrets fallback | pending |
