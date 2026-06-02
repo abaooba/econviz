@@ -14,6 +14,18 @@ from src.indicators import INDICATORS, RECESSION_SERIES_ID
 
 logger = logging.getLogger(__name__)
 
+# python.org macOS Python builds ship without wired-up CA certificates, so
+# urllib (used internally by fredapi) raises CERTIFICATE_VERIFY_FAILED on every
+# HTTPS call. Point OpenSSL at certifi's bundle so SSL verification works
+# without requiring the user to run "Install Certificates.command" by hand.
+try:
+    import certifi
+
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("SSL_CERT_DIR", os.path.dirname(certifi.where()))
+except ImportError:
+    logger.warning("certifi not installed — SSL verification may fail on macOS")
+
 
 def fetch_series(series_id: str, start_date: str, end_date: str) -> pd.Series:
     """Fetch a single FRED series between start_date and end_date.

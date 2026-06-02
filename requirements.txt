@@ -1,3 +1,4 @@
+certifi==2026.02.25
 fredapi==0.5.2
 pandas==2.3.3
 plotly==6.7.0
