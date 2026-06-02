@@ -6,6 +6,7 @@ so the dashboard degrades gracefully when the API key is absent or a request fai
 
 import logging
 import os
+import time
 
 import pandas as pd
 import streamlit as st
@@ -27,25 +28,48 @@ except ImportError:
     logger.warning("certifi not installed — SSL verification may fail on macOS")
 
 
-def fetch_series(series_id: str, start_date: str, end_date: str) -> pd.Series:
+def fetch_series(
+    series_id: str, start_date: str, end_date: str, retries: int = 2
+) -> pd.Series:
     """Fetch a single FRED series between start_date and end_date.
 
-    Returns an empty Series if the API key is missing or the request fails.
+    Retries transient failures with a short backoff. Returns an empty Series
+    if the API key is missing or every attempt fails.
     """
     api_key = os.getenv("FRED_API_KEY")
     if not api_key:
         logger.warning("FRED_API_KEY not set — returning empty Series for %s", series_id)
         return pd.Series(dtype=float)
-    try:
-        from fredapi import Fred
+    for attempt in range(retries + 1):
+        try:
+            from fredapi import Fred
 
-        fred = Fred(api_key=api_key)
-        return fred.get_series(
-            series_id, observation_start=start_date, observation_end=end_date
-        )
-    except Exception as exc:
-        logger.warning("Failed to fetch %s: %s", series_id, exc)
-        return pd.Series(dtype=float)
+            fred = Fred(api_key=api_key)
+            return fred.get_series(
+                series_id, observation_start=start_date, observation_end=end_date
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch %s (attempt %d/%d): %s",
+                series_id, attempt + 1, retries + 1, exc,
+            )
+            if attempt < retries:
+                time.sleep(0.5 * (attempt + 1))
+    return pd.Series(dtype=float)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_indicator(name: str, start_date: str, end_date: str) -> pd.Series:
+    """Fetch one indicator by its display name.
+
+    Raises if the fetch comes back empty. st.cache_data does NOT cache results
+    when the function raises, so a transient FRED failure is retried on the next
+    run instead of being stuck as an empty (cached) result for the whole TTL.
+    """
+    series = fetch_series(INDICATORS[name], start_date, end_date)
+    if series.empty:
+        raise RuntimeError(f"No data returned for {name}")
+    return series
 
 
 @st.cache_data(ttl=3600)

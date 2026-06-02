@@ -20,7 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from src.charts import make_line_chart, make_summary_card
-from src.fetch import fetch_all_indicators, fetch_recession_bands
+from src.fetch import fetch_indicator, fetch_recession_bands
 from src.indicators import INDICATORS
 from src.transform import compute_yoy_change
 
@@ -58,10 +58,11 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Indicators")
-    selected = [name for name in INDICATORS if st.checkbox(name, value=True)]
+    st.caption("Check an indicator to load it.")
+    selected = [name for name in INDICATORS if st.checkbox(name, value=False)]
 
 if not selected:
-    st.info("Select at least one indicator in the sidebar to view charts.")
+    st.info("👈 Select one or more indicators in the sidebar to load their data.")
     st.stop()
 
 # st.date_input returns a tuple when a range is active; fall back gracefully
@@ -72,9 +73,8 @@ if isinstance(date_range, (list, tuple)):
 else:
     start_str = end_str = str(date_range)
 
-# ── Data fetch ─────────────────────────────────────────────────────────────────
+# ── Recession bands (shared by all charts) ─────────────────────────────────────
 with st.spinner("Fetching data from FRED…"):
-    all_data = fetch_all_indicators(start_str, end_str)
     recession_bands = fetch_recession_bands(start_str, end_str)
 
 # ── Per-indicator metadata ─────────────────────────────────────────────────────
@@ -119,13 +119,20 @@ tabs = st.tabs(selected + ["Compare"])
 
 for i, name in enumerate(selected):
     with tabs[i]:
-        raw = all_data.get(name, pd.Series(dtype=float))
+        # Each indicator is fetched and cached independently, so one failing
+        # never affects the others. A failed fetch is not cached, so it retries
+        # on the next run instead of being stuck empty for the cache TTL.
+        try:
+            with st.spinner(f"Loading {name}…"):
+                raw = fetch_indicator(name, start_str, end_str)
+        except Exception:
+            raw = pd.Series(dtype=float)
 
         if raw.empty:
             if _API_KEY:
                 st.warning(
-                    f"Data for **{name}** could not be loaded from FRED. "
-                    "Check your API key or try refreshing the page."
+                    f"Data for **{name}** could not be loaded from FRED "
+                    "(temporary hiccup). Press **R** to retry."
                 )
             else:
                 st.warning(f"No data for **{name}** — a valid FRED API key is required.")

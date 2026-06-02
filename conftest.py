@@ -13,5 +13,5 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 if "streamlit" not in sys.modules:
     _st = MagicMock()
-    _st.cache_data = lambda ttl=None: (lambda f: f)
+    _st.cache_data = lambda *args, **kwargs: (lambda f: f)
     sys.modules["streamlit"] = _st
