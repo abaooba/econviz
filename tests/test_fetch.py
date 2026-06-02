@@ -19,15 +19,10 @@ def _usrec(pattern: list) -> pd.Series:
 
 class TestFetchSeriesNoKey:
     def test_returns_empty_series_without_api_key(self):
-        import src.fetch as m
-        saved = m._API_KEY
-        m._API_KEY = None
-        try:
+        with patch("src.fetch.os.getenv", return_value=None):
             result = fetch_series("UNRATE", "2020-01-01", "2020-12-31")
-            assert isinstance(result, pd.Series)
-            assert result.empty
-        finally:
-            m._API_KEY = saved
+        assert isinstance(result, pd.Series)
+        assert result.empty
 
 
 class TestFetchRecessionBands:

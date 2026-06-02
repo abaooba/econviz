@@ -14,21 +14,20 @@ from src.indicators import INDICATORS, RECESSION_SERIES_ID
 
 logger = logging.getLogger(__name__)
 
-_API_KEY = os.getenv("FRED_API_KEY")
-
 
 def fetch_series(series_id: str, start_date: str, end_date: str) -> pd.Series:
     """Fetch a single FRED series between start_date and end_date.
 
     Returns an empty Series if the API key is missing or the request fails.
     """
-    if not _API_KEY:
+    api_key = os.getenv("FRED_API_KEY")
+    if not api_key:
         logger.warning("FRED_API_KEY not set — returning empty Series for %s", series_id)
         return pd.Series(dtype=float)
     try:
         from fredapi import Fred
 
-        fred = Fred(api_key=_API_KEY)
+        fred = Fred(api_key=api_key)
         return fred.get_series(
             series_id, observation_start=start_date, observation_end=end_date
         )
