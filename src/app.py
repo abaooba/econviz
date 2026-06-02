@@ -4,7 +4,12 @@ Run with:  streamlit run src/app.py
 """
 
 import os
+import sys
 from datetime import date
+
+# Add project root to sys.path so `from src.X import` resolves when
+# Streamlit adds src/ (not the project root) to the path.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
