@@ -11,6 +11,11 @@ from datetime import date
 # Streamlit adds src/ (not the project root) to the path.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Load .env before any src imports so FRED_API_KEY is in the environment
+# when fetch.py reads it at module import time.
+from dotenv import load_dotenv
+load_dotenv()
+
 import pandas as pd
 import streamlit as st
 
