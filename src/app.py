@@ -19,7 +19,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 import pandas as pd
 import streamlit as st
 
-from src.charts import make_line_chart, make_summary_card
+from src.charts import make_comparison_chart, make_line_chart, make_summary_card
 from src.fetch import fetch_indicator, fetch_recession_bands
 from src.indicators import INDICATORS
 from src.transform import compute_yoy_change
@@ -170,9 +170,47 @@ for i, name in enumerate(selected):
         if blurb:
             st.caption(blurb)
 
-# Compare tab — built in Phase 4
+# ── Compare tab ───────────────────────────────────────────────────────────────
 with tabs[-1]:
-    st.info(
-        "**Compare** — overlay any two indicators on a dual-axis chart with a "
-        "correlation metric.  \nThis tab will be built in Phase 4."
-    )
+    st.subheader("Compare Two Indicators")
+    st.caption("Select any two indicators to overlay them on a dual-axis chart.")
+
+    all_names = list(INDICATORS.keys())
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        choice_a = st.selectbox("Indicator A", all_names, index=0, key="compare_a")
+    with col_b:
+        choices_b = [n for n in all_names if n != choice_a]
+        choice_b = st.selectbox("Indicator B", choices_b, index=0, key="compare_b")
+
+    try:
+        with st.spinner(f"Loading {choice_a}…"):
+            raw_a = fetch_indicator(choice_a, start_str, end_str)
+        with st.spinner(f"Loading {choice_b}…"):
+            raw_b = fetch_indicator(choice_b, start_str, end_str)
+    except Exception:
+        if _API_KEY:
+            st.warning("Could not load data for one or both indicators. Press **R** to retry.")
+        else:
+            st.warning("A valid FRED API key is required to load indicator data.")
+    else:
+        series_a = compute_yoy_change(raw_a).dropna() if choice_a == "Inflation (CPI YoY %)" else raw_a.dropna()
+        series_b = compute_yoy_change(raw_b).dropna() if choice_b == "Inflation (CPI YoY %)" else raw_b.dropna()
+
+        aligned_a, aligned_b = series_a.align(series_b, join="inner")
+        if len(aligned_a) >= 2:
+            corr = float(aligned_a.corr(aligned_b))
+            st.metric(
+                label=f"Pearson Correlation — {choice_a} vs {choice_b} (overlapping dates)",
+                value=f"{corr:.3f}",
+            )
+
+        fig = make_comparison_chart(
+            series_a=series_a,
+            series_b=series_b,
+            label_a=choice_a,
+            label_b=choice_b,
+            recession_bands=recession_bands,
+        )
+        st.plotly_chart(fig, use_container_width=True)
