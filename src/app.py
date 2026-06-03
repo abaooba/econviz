@@ -114,6 +114,13 @@ _BLURBS = {
     ),
 }
 
+
+def _to_csv_bytes(series: pd.Series, col_name: str) -> bytes:
+    df = series.rename(col_name).to_frame()
+    df.index.name = "date"
+    return df.to_csv().encode()
+
+
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 tabs = st.tabs(selected + ["Compare"])
 
@@ -170,6 +177,16 @@ for i, name in enumerate(selected):
         if blurb:
             st.caption(blurb)
 
+        # ── CSV export ────────────────────────────────────────────────────────
+        series_id = INDICATORS[name]
+        st.download_button(
+            label=f"Download {name} data (.csv)",
+            data=_to_csv_bytes(series, "value"),
+            file_name=f"econviz_{series_id}_{start_str}_{end_str}.csv",
+            mime="text/csv",
+            key=f"dl_{series_id}",
+        )
+
 # ── Compare tab ───────────────────────────────────────────────────────────────
 with tabs[-1]:
     st.subheader("Compare Two Indicators")
@@ -214,3 +231,18 @@ with tabs[-1]:
             recession_bands=recession_bands,
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        # ── Combined CSV export ───────────────────────────────────────────────
+        if not series_a.empty and not series_b.empty:
+            combined = pd.DataFrame({choice_a: series_a, choice_b: series_b})
+            combined.index.name = "date"
+            combined_bytes = combined.to_csv().encode()
+            sid_a = INDICATORS[choice_a]
+            sid_b = INDICATORS[choice_b]
+            st.download_button(
+                label=f"Download {choice_a} + {choice_b} combined (.csv)",
+                data=combined_bytes,
+                file_name=f"econviz_{sid_a}_{sid_b}_{start_str}_{end_str}.csv",
+                mime="text/csv",
+                key="dl_compare",
+            )
