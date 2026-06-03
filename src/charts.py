@@ -112,15 +112,13 @@ def make_comparison_chart(
         title=dict(text=f"{label_a} vs {label_b}", font=dict(size=16)),
         xaxis=dict(title="Date", showgrid=True, gridcolor="#e5e5e5"),
         yaxis=dict(
-            title=label_a,
-            titlefont=dict(color="#1f77b4"),
+            title=dict(text=label_a, font=dict(color="#1f77b4")),
             tickfont=dict(color="#1f77b4"),
             showgrid=True,
             gridcolor="#e5e5e5",
         ),
         yaxis2=dict(
-            title=label_b,
-            titlefont=dict(color="#ff7f0e"),
+            title=dict(text=label_b, font=dict(color="#ff7f0e")),
             tickfont=dict(color="#ff7f0e"),
             overlaying="y",
             side="right",
