@@ -6,12 +6,20 @@ Produces Plotly figures and summary statistics consumed by the Streamlit app.
 import pandas as pd
 import plotly.graph_objects as go
 
+# Maps pandas frequency alias -> (tickformat, dtick) for Plotly x-axis.
+_FREQ_TICK: dict[str, tuple[str, str | None]] = {
+    "MS": ("%b %Y", None),
+    "QS": ("%b %Y", "M3"),
+    "YS": ("%Y", "M12"),
+}
+
 
 def make_line_chart(
     series: pd.Series,
     title: str,
     y_label: str,
     recession_bands: list[dict],
+    freq: str = "MS",
 ) -> go.Figure:
     """Build a line chart with hover tooltips and NBER recession shading.
 
@@ -42,13 +50,22 @@ def make_line_chart(
             line_width=0,
         )
 
+    tick_fmt, dtick = _FREQ_TICK.get(freq, ("%b %Y", None))
+    xaxis_cfg: dict = dict(
+        title="Date",
+        showgrid=True,
+        gridcolor="#e5e5e5",
+        tickformat=tick_fmt,
+    )
+    if dtick:
+        xaxis_cfg["dtick"] = dtick
+
     fig.update_layout(
         title=dict(text=title, font=dict(size=16)),
-        xaxis_title="Date",
+        xaxis=xaxis_cfg,
         yaxis_title=y_label,
         plot_bgcolor="white",
         paper_bgcolor="white",
-        xaxis=dict(showgrid=True, gridcolor="#e5e5e5"),
         yaxis=dict(showgrid=True, gridcolor="#e5e5e5"),
         hovermode="x unified",
         margin=dict(l=60, r=20, t=60, b=50),
@@ -63,6 +80,7 @@ def make_comparison_chart(
     label_a: str,
     label_b: str,
     recession_bands: list[dict],
+    freq: str = "MS",
 ) -> go.Figure:
     """Build a dual-axis line chart overlaying two economic series.
 
@@ -108,9 +126,19 @@ def make_comparison_chart(
             line_width=0,
         )
 
+    tick_fmt, dtick = _FREQ_TICK.get(freq, ("%b %Y", None))
+    xaxis_cfg: dict = dict(
+        title="Date",
+        showgrid=True,
+        gridcolor="#e5e5e5",
+        tickformat=tick_fmt,
+    )
+    if dtick:
+        xaxis_cfg["dtick"] = dtick
+
     fig.update_layout(
         title=dict(text=f"{label_a} vs {label_b}", font=dict(size=16)),
-        xaxis=dict(title="Date", showgrid=True, gridcolor="#e5e5e5"),
+        xaxis=xaxis_cfg,
         yaxis=dict(
             title=dict(text=label_a, font=dict(color="#1f77b4")),
             tickfont=dict(color="#1f77b4"),

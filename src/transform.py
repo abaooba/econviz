@@ -27,3 +27,14 @@ def resample_to_monthly(series: pd.Series) -> pd.Series:
         start=series.index[0], end=series.index[-1], freq="MS"
     )
     return series.reindex(monthly_index).ffill()
+
+
+def resample_series(series: pd.Series, freq: str) -> pd.Series:
+    """Resample series to target frequency using the last observation in each period.
+
+    freq should be a pandas offset alias: 'MS' (monthly), 'QS' (quarterly),
+    'YS' (annual). Empty series are returned unchanged.
+    """
+    if series.empty:
+        return series
+    return series.resample(freq).last().dropna()

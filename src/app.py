@@ -5,7 +5,7 @@ Run with:  streamlit run src/app.py
 
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
 
 # Add project root to sys.path so `from src.X import` resolves when
 # Streamlit adds src/ (not the project root) to the path.
@@ -22,18 +22,23 @@ import streamlit as st
 from src.charts import make_comparison_chart, make_line_chart, make_summary_card
 from src.fetch import fetch_indicator, fetch_recession_bands
 from src.indicators import INDICATORS
-from src.transform import compute_yoy_change
+from src.transform import compute_yoy_change, resample_series
 
 st.set_page_config(
     page_title="EconViz",
-    page_icon="📈",
+    page_icon="\U0001f4c8",
     layout="wide",
 )
 
 _API_KEY = os.getenv("FRED_API_KEY")
 
-st.title("📈 EconViz — Economic Indicators Dashboard")
-st.caption("Live U.S. macroeconomic data powered by the Federal Reserve (FRED)")
+# ── Header ──────────────────────────────────────────────────────────────────────────────
+col_title, col_ts = st.columns([4, 1])
+with col_title:
+    st.title("\U0001f4c8 EconViz — Economic Indicators Dashboard")
+    st.caption("Powered by FRED — Federal Reserve Economic Data")
+with col_ts:
+    st.caption(f"Last updated  \n{datetime.utcnow().strftime('%b %d, %Y %H:%M UTC')}")
 
 if not _API_KEY:
     st.error(
@@ -42,7 +47,7 @@ if not _API_KEY:
         "Get a free key at https://fred.stlouisfed.org/docs/api/api_key.html"
     )
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
+# ── Sidebar ──────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Controls")
 
@@ -57,12 +62,23 @@ with st.sidebar:
     )
 
     st.divider()
+    st.subheader("Frequency")
+    freq_label = st.radio(
+        "Resample to",
+        ["Monthly", "Quarterly", "Annual"],
+        index=0,
+        horizontal=True,
+    )
+    _FREQ_MAP = {"Monthly": "MS", "Quarterly": "QS", "Annual": "YS"}
+    freq = _FREQ_MAP[freq_label]
+
+    st.divider()
     st.subheader("Indicators")
     st.caption("Check an indicator to load it.")
     selected = [name for name in INDICATORS if st.checkbox(name, value=False)]
 
 if not selected:
-    st.info("👈 Select one or more indicators in the sidebar to load their data.")
+    st.info("\U0001f448 Select one or more indicators in the sidebar to load their data.")
     st.stop()
 
 # st.date_input returns a tuple when a range is active; fall back gracefully
@@ -73,11 +89,11 @@ if isinstance(date_range, (list, tuple)):
 else:
     start_str = end_str = str(date_range)
 
-# ── Recession bands (shared by all charts) ─────────────────────────────────────
+# ── Recession bands (shared by all charts) ───────────────────────────────────────────────────────
 with st.spinner("Fetching data from FRED…"):
     recession_bands = fetch_recession_bands(start_str, end_str)
 
-# ── Per-indicator metadata ─────────────────────────────────────────────────────
+# ── Per-indicator metadata ───────────────────────────────────────────────────────────────────
 _Y_LABELS = {
     "GDP Growth (%)": "% (Annual Rate)",
     "Inflation (CPI YoY %)": "YoY %",
@@ -121,14 +137,13 @@ def _to_csv_bytes(series: pd.Series, col_name: str) -> bytes:
     return df.to_csv().encode()
 
 
-# ── Tabs ───────────────────────────────────────────────────────────────────────
+# ── Tabs ──────────────────────────────────────────────────────────────────────────────────────
 tabs = st.tabs(selected + ["Compare"])
 
 for i, name in enumerate(selected):
     with tabs[i]:
         # Each indicator is fetched and cached independently, so one failing
-        # never affects the others. A failed fetch is not cached, so it retries
-        # on the next run instead of being stuck empty for the cache TTL.
+        # never affects the others.
         try:
             with st.spinner(f"Loading {name}…"):
                 raw = fetch_indicator(name, start_str, end_str)
@@ -147,8 +162,9 @@ for i, name in enumerate(selected):
 
         # CPI is fetched as a price-level index; convert to YoY %
         series = compute_yoy_change(raw).dropna() if name == "Inflation (CPI YoY %)" else raw.dropna()
+        series = resample_series(series, freq)
 
-        # ── Metric cards ──────────────────────────────────────────────────────
+        # ── Metric cards ─────────────────────────────────────────────────────────────────────
         card = make_summary_card(series, name)
 
         cutoff_5yr = pd.Timestamp(end_str) - pd.DateOffset(years=5)
@@ -163,21 +179,22 @@ for i, name in enumerate(selected):
         col2.metric("1-Year Change", change_fmt or "N/A")
         col3.metric("5-Year Average", avg_fmt)
 
-        # ── Chart ─────────────────────────────────────────────────────────────
+        # ── Chart ─────────────────────────────────────────────────────────────────────────────────────
         fig = make_line_chart(
             series=series,
             title=name,
             y_label=_Y_LABELS.get(name, "Value"),
             recession_bands=recession_bands,
+            freq=freq,
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # ── Plain-English blurb ───────────────────────────────────────────────
+        # ── Plain-English blurb ────────────────────────────────────────────────────────────────────
         blurb = _BLURBS.get(name)
         if blurb:
             st.caption(blurb)
 
-        # ── CSV export ────────────────────────────────────────────────────────
+        # ── CSV export ──────────────────────────────────────────────────────────────────────────────
         series_id = INDICATORS[name]
         st.download_button(
             label=f"Download {name} data (.csv)",
@@ -187,7 +204,7 @@ for i, name in enumerate(selected):
             key=f"dl_{series_id}",
         )
 
-# ── Compare tab ───────────────────────────────────────────────────────────────
+# ── Compare tab ──────────────────────────────────────────────────────────────────────────────
 with tabs[-1]:
     st.subheader("Compare Two Indicators")
     st.caption("Select any two indicators to overlay them on a dual-axis chart.")
@@ -214,6 +231,8 @@ with tabs[-1]:
     else:
         series_a = compute_yoy_change(raw_a).dropna() if choice_a == "Inflation (CPI YoY %)" else raw_a.dropna()
         series_b = compute_yoy_change(raw_b).dropna() if choice_b == "Inflation (CPI YoY %)" else raw_b.dropna()
+        series_a = resample_series(series_a, freq)
+        series_b = resample_series(series_b, freq)
 
         aligned_a, aligned_b = series_a.align(series_b, join="inner")
         if len(aligned_a) >= 2:
@@ -229,10 +248,11 @@ with tabs[-1]:
             label_a=choice_a,
             label_b=choice_b,
             recession_bands=recession_bands,
+            freq=freq,
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # ── Combined CSV export ───────────────────────────────────────────────
+        # ── Combined CSV export ───────────────────────────────────────────────────────────────────
         if not series_a.empty and not series_b.empty:
             combined = pd.DataFrame({choice_a: series_a, choice_b: series_b})
             combined.index.name = "date"
@@ -246,3 +266,7 @@ with tabs[-1]:
                 mime="text/csv",
                 key="dl_compare",
             )
+
+# ── Footer ──────────────────────────────────────────────────────────────────────────────
+st.markdown("---")
+st.caption("Data sourced from FRED, Federal Reserve Bank of St. Louis · fred.stlouisfed.org")

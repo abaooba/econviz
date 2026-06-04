@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from src.transform import compute_yoy_change, resample_to_monthly
+from src.transform import compute_yoy_change, resample_series, resample_to_monthly
 
 
 def _monthly_series(start="2020-01-01", periods=24, start_val=260.0, step=2.0):
@@ -24,7 +24,7 @@ class TestComputeYoyChange:
         assert result.iloc[12:].notna().all()
 
     def test_approximate_yoy_value(self):
-        # start_val=260, step=2 → month-13 value=284, month-1 value=260
+        # start_val=260, step=2 -> month-13 value=284, month-1 value=260
         # YoY % = (284-260)/260*100 = 24/260*100 ≈ 9.231
         s = _monthly_series(start_val=260.0, step=2.0, periods=24)
         result = compute_yoy_change(s)
@@ -62,3 +62,34 @@ class TestResampleToMonthly:
         assert len(result) == 12
         for i in range(12):
             assert result.iloc[i] == float(i)
+
+
+class TestResampleSeries:
+    def test_empty_returns_empty(self):
+        assert resample_series(pd.Series(dtype=float), "MS").empty
+
+    def test_monthly_to_quarterly_reduces_observations(self):
+        idx = pd.date_range("2020-01-01", periods=12, freq="MS")
+        s = pd.Series(range(12), index=idx, dtype=float)
+        result = resample_series(s, "QS")
+        assert len(result) == 4
+
+    def test_monthly_to_annual_reduces_to_one_year(self):
+        idx = pd.date_range("2020-01-01", periods=12, freq="MS")
+        s = pd.Series(range(12), index=idx, dtype=float)
+        result = resample_series(s, "YS")
+        assert len(result) == 1
+
+    def test_takes_last_value_in_period(self):
+        # Monthly series Jan-Mar; quarterly resample should take March (index 2)
+        idx = pd.date_range("2020-01-01", periods=3, freq="MS")
+        s = pd.Series([10.0, 20.0, 30.0], index=idx)
+        result = resample_series(s, "QS")
+        assert result.iloc[0] == 30.0
+
+    def test_already_at_target_freq_unchanged(self):
+        idx = pd.date_range("2020-01-01", periods=4, freq="QS")
+        s = pd.Series([1.0, 2.0, 3.0, 4.0], index=idx)
+        result = resample_series(s, "QS")
+        assert len(result) == 4
+        assert list(result.values) == [1.0, 2.0, 3.0, 4.0]
