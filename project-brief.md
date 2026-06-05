@@ -19,7 +19,7 @@ Build an interactive Python dashboard that pulls live macroeconomic data from th
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|-------|------------|
 | Language | Python 3.11+ |
 | Dashboard UI | Streamlit |
 | Data fetching | `fredapi` (FRED API wrapper) |
@@ -80,6 +80,7 @@ Write README, add docstrings, deploy to Streamlit Cloud, verify secrets manageme
 | 2026-06-02 | Phase 4 — Features (Day 9) | Added make_comparison_chart to src/charts.py (dual-axis Plotly figure: series A on left y-axis in blue, series B on right y-axis in orange, shared x-axis, recession shading); built out Compare tab in src/app.py (two indicator dropdowns, Pearson correlation metric card, dual-axis chart). All 16 tests still pass. |
 | 2026-06-03 | Phase 4 — Features (Day 10) | Added CSV export to src/app.py: st.download_button in every indicator tab (filename: econviz_{series_id}_{start}_{end}.csv) and a combined export button in the Compare tab that merges both selected series into one DataFrame. Helper _to_csv_bytes added. |
 | 2026-06-04 | Phase 4 — Features (Day 11) | Added resample_series(series, freq) to src/transform.py; added freq param to make_line_chart and make_comparison_chart in src/charts.py (maps MS/QS/YS to Plotly tickformat+dtick); added Frequency radio (Monthly/Quarterly/Annual) to sidebar in src/app.py with resampling applied before every chart render; replaced plain title with polished header (title + FRED subtitle + UTC timestamp column); added FRED attribution footer. 5 new test assertions for resample_series. Phase 4 complete. |
+| 2026-06-05 | Phase 5 — Deploy (Day 12) | Wrote README.md (project description, tech stack, local run instructions with venv + .env setup, project structure, MIT license); updated src/config.py with get_fred_api_key() helper that checks os.getenv first then falls back to st.secrets for Streamlit Cloud deployments; updated src/fetch.py to call get_fred_api_key() from config module instead of os.getenv directly, wiring the secrets fallback into all live data fetching. |
 
 ---
 

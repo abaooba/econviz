@@ -11,6 +11,7 @@ import time
 import pandas as pd
 import streamlit as st
 
+from src.config import get_fred_api_key
 from src.indicators import INDICATORS, RECESSION_SERIES_ID
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ def fetch_series(
     Retries transient failures with a short backoff. Returns an empty Series
     if the API key is missing or every attempt fails.
     """
-    api_key = os.getenv("FRED_API_KEY")
+    api_key = get_fred_api_key()
     if not api_key:
         logger.warning("FRED_API_KEY not set — returning empty Series for %s", series_id)
         return pd.Series(dtype=float)
