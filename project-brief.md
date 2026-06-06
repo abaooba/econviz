@@ -4,8 +4,9 @@
 
 - **Field:** Data Science / Economics / Finance
 - **Folder:** `Projects/econviz/` (planning) + `abaooba/econviz` (code)
-- **Status:** in_progress
+- **Status:** complete
 - **Start Date:** 2026-05-28
+- **Completion Date:** 2026-06-06
 - **Target Completion:** 2026-06-10
 
 ---
@@ -81,11 +82,37 @@ Write README, add docstrings, deploy to Streamlit Cloud, verify secrets manageme
 | 2026-06-03 | Phase 4 — Features (Day 10) | Added CSV export to src/app.py: st.download_button in every indicator tab (filename: econviz_{series_id}_{start}_{end}.csv) and a combined export button in the Compare tab that merges both selected series into one DataFrame. Helper _to_csv_bytes added. |
 | 2026-06-04 | Phase 4 — Features (Day 11) | Added resample_series(series, freq) to src/transform.py; added freq param to make_line_chart and make_comparison_chart in src/charts.py (maps MS/QS/YS to Plotly tickformat+dtick); added Frequency radio (Monthly/Quarterly/Annual) to sidebar in src/app.py with resampling applied before every chart render; replaced plain title with polished header (title + FRED subtitle + UTC timestamp column); added FRED attribution footer. 5 new test assertions for resample_series. Phase 4 complete. |
 | 2026-06-05 | Phase 5 — Deploy (Day 12) | Wrote README.md (project description, tech stack, local run instructions with venv + .env setup, project structure, MIT license); updated src/config.py with get_fred_api_key() helper that checks os.getenv first then falls back to st.secrets for Streamlit Cloud deployments; updated src/fetch.py to call get_fred_api_key() from config module instead of os.getenv directly, wiring the secrets fallback into all live data fetching. |
+| 2026-06-06 | Phase 5 — Deploy (Day 13) | Created .streamlit/secrets.toml stub (reference structure for Streamlit Cloud — no real key committed); updated .gitignore to exclude secrets.toml from version control; surfaced final QA checklist and step-by-step Streamlit Cloud deploy instructions to Ares. **All 13 phases complete — project done.** |
+
+---
+
+## Final QA Checklist
+
+- [ ] All 5 indicators load and chart correctly
+- [ ] Recession bands visible on each chart
+- [ ] Compare tab works for all indicator pairs
+- [ ] CSV download produces valid files
+- [ ] Error banner shows when API key is absent (test by temporarily clearing secrets)
+- [ ] App loads in under 5 seconds on first visit (cold cache)
+- [ ] No unhandled Python exceptions in Streamlit logs
+
+---
+
+## Deploy Instructions (Ares Action Required)
+
+1. Go to [https://share.streamlit.io](https://share.streamlit.io) and sign in with your GitHub account
+2. Click **New app** → select repo `abaooba/econviz` → branch: `main` → main file: `src/app.py`
+3. Open **Advanced settings → Secrets** and paste your FRED API key:
+   ```
+   FRED_API_KEY = "<your_fred_api_key>"
+   ```
+4. Click **Deploy** — the app builds in ~60 seconds
+5. Copy the public URL and paste it into `README.md` replacing the `[Live Demo →](#)` placeholder
 
 ---
 
 ## Notes
 
 - FRED API key now available — live FRED fetching is unblocked
-- GitHub repo `abaooba/econviz` created and in use — Streamlit Cloud deployment needs Ares to connect it before Phase 5
+- GitHub repo `abaooba/econviz` created and in use
 - All source code commits go to `abaooba/econviz` exclusively; `claude-portfolio` holds only planning/scheduling files

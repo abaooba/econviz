@@ -5,3 +5,4 @@ data/*.csv
 .venv/
 *.egg-info/
 .DS_Store
+.streamlit/secrets.toml
