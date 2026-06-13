@@ -6,3 +6,6 @@ data/*.csv
 *.egg-info/
 .DS_Store
 .streamlit/secrets.toml
+
+# direnv local dev convenience
+.envrc
