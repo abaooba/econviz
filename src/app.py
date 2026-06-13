@@ -47,19 +47,55 @@ if not _API_KEY:
         "Get a free key at https://fred.stlouisfed.org/docs/api/api_key.html"
     )
 
+# ── Date-range presets ───────────────────────────────────────────────────────────────────
+# One-click ranges replace the fiddly two-click calendar. Value = years back from
+# today; None means all available history, "custom" reveals the manual picker.
+_MIN_DATE = date(1950, 1, 1)
+_RANGE_PRESETS = {"1Y": 1, "5Y": 5, "10Y": 10, "25Y": 25, "Max": None, "Custom": "custom"}
+_DEFAULT_PRESET = "10Y"
+
+
+def resolve_date_range() -> tuple[str, str]:
+    """Render the date-range controls and return (start, end) as ISO strings.
+
+    Quick presets cover the common cases in a single click; the 'Custom' option
+    reveals the full range picker only when needed. This replaces the bare
+    two-click calendar, which forced a rerun mid-selection and was hard to operate.
+    """
+    today = date.today()
+    preset = st.segmented_control(
+        "Date range",
+        list(_RANGE_PRESETS),
+        default=_DEFAULT_PRESET,
+        key="range_preset",
+    ) or _DEFAULT_PRESET
+
+    if preset == "Custom":
+        default_start = (pd.Timestamp(today) - pd.DateOffset(years=10)).date()
+        custom = st.date_input(
+            "Pick start and end dates",
+            value=(default_start, today),
+            min_value=_MIN_DATE,
+            max_value=today,
+            key="custom_range",
+        )
+        # date_input yields a length-1 tuple while only the start is chosen.
+        if isinstance(custom, (list, tuple)):
+            return str(custom[0]), str(custom[-1])
+        return str(custom), str(custom)
+
+    years = _RANGE_PRESETS[preset]
+    if years is None:  # "Max" — all available history
+        return str(_MIN_DATE), str(today)
+    start = (pd.Timestamp(today) - pd.DateOffset(years=years)).date()
+    return str(start), str(today)
+
+
 # ── Sidebar ──────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Controls")
 
-    today = date.today()
-    default_start = today.replace(year=today.year - 10)
-
-    date_range = st.date_input(
-        "Date range",
-        value=(default_start, today),
-        min_value=date(1950, 1, 1),
-        max_value=today,
-    )
+    start_str, end_str = resolve_date_range()
 
     st.divider()
     st.subheader("Frequency")
@@ -80,14 +116,6 @@ with st.sidebar:
 if not selected:
     st.info("\U0001f448 Select one or more indicators in the sidebar to load their data.")
     st.stop()
-
-# st.date_input returns a tuple when a range is active; fall back gracefully
-# if the user has only picked the start date (tuple of length 1)
-if isinstance(date_range, (list, tuple)):
-    start_str = str(date_range[0])
-    end_str = str(date_range[1]) if len(date_range) > 1 else str(date_range[0])
-else:
-    start_str = end_str = str(date_range)
 
 # ── Recession bands (shared by all charts) ───────────────────────────────────────────────────────
 with st.spinner("Fetching data from FRED…"):
