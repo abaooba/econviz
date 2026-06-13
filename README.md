@@ -2,7 +2,7 @@
 
 An interactive Python dashboard that pulls live macroeconomic data from the [Federal Reserve's FRED API](https://fred.stlouisfed.org/) and visualizes key U.S. economic indicators — GDP growth, CPI inflation, unemployment, the federal funds rate, and consumer sentiment — in a clean, browser-based UI. Built to demonstrate real API integration, a clean data-pipeline architecture, and end-to-end cloud deployment.
 
-**[Live Demo →](#)** *(link updated after deployment)*
+**[Live Demo →](#)https://econviz-9djwus3qeszeioszhkxvlr.streamlit.app/
 
 ---
 
