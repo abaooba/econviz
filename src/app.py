@@ -20,6 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from src.charts import make_comparison_chart, make_line_chart, make_summary_card
+from src.events import CATEGORY_STYLE, events_in_range
 from src.fetch import clip_bands_to_window, fetch_indicator, fetch_recession_bands
 from src.indicators import INDICATORS
 from src.transform import compute_yoy_change, resample_series
@@ -111,7 +112,11 @@ with st.sidebar:
     st.divider()
     st.subheader("Indicators")
     st.caption("Check an indicator to load it.")
-    selected = [name for name in INDICATORS if st.checkbox(name, value=False)]
+    # Default the first indicator on so the app opens with data + insights visible
+    # instead of an empty screen.
+    selected = [
+        name for i, name in enumerate(INDICATORS) if st.checkbox(name, value=(i == 0))
+    ]
 
 if not selected:
     st.info("\U0001f448 Select one or more indicators in the sidebar to load their data.")
@@ -163,10 +168,54 @@ _BLURBS = {
 }
 
 
+_UNITS = {
+    "GDP Growth (%)": "%",
+    "Inflation (CPI YoY %)": "%",
+    "Unemployment Rate (%)": "%",
+    "Federal Funds Rate (%)": "%",
+    "Consumer Sentiment": "",
+}
+
+
 def _to_csv_bytes(series: pd.Series, col_name: str) -> bytes:
     df = series.rename(col_name).to_frame()
     df.index.name = "date"
     return df.to_csv().encode()
+
+
+def _current_read(name: str, latest, change, five_yr_avg) -> str:
+    """Build a data-driven one-liner: latest value vs its 5-year average and trend."""
+    if latest is None:
+        return ""
+    unit = _UNITS.get(name, "")
+    parts = [f"the latest reading is **{latest:.2f}{unit}**"]
+    if pd.notna(five_yr_avg):
+        diff = latest - five_yr_avg
+        if abs(diff) < 0.05:
+            parts.append(f"right around its 5-year average of {five_yr_avg:.2f}{unit}")
+        else:
+            direction = "above" if diff > 0 else "below"
+            parts.append(
+                f"{abs(diff):.2f}{unit} {direction} its 5-year average of {five_yr_avg:.2f}{unit}"
+            )
+    if change is not None:
+        if abs(change) < 0.05:
+            parts.append("and roughly flat over the past year")
+        else:
+            verb = "up" if change > 0 else "down"
+            parts.append(f"and {verb} {abs(change):.2f}{unit} over the past year")
+    return ", ".join(parts) + "."
+
+
+def _render_event(e: dict) -> None:
+    """Render one curated event: category badge, headline, date, and explanation."""
+    style = CATEGORY_STYLE.get(e["category"], {})
+    when = pd.Timestamp(e["date"]).strftime("%b %Y")
+    st.markdown(
+        f"{style.get('emoji', '•')} **{e['title']}** · {when}  ·  _{style.get('label', '')}_"
+    )
+    st.markdown(f"*{e['short']}*")
+    st.write(e["detail"])
 
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────────────────────
@@ -211,20 +260,44 @@ for i, name in enumerate(selected):
         col2.metric("1-Year Change", change_fmt or "N/A")
         col3.metric("5-Year Average", avg_fmt)
 
-        # ── Chart ─────────────────────────────────────────────────────────────────────────────────────
+        # ── What this measures (prominent, above the chart) ──────────────────────────────────────
+        blurb = _BLURBS.get(name)
+        if blurb:
+            st.info(f"**What this measures** — {blurb}", icon="📘")
+
+        # ── Chart with notable-event markers ─────────────────────────────────────────────────────
+        events = events_in_range(name, start_str, end_str)
         fig = make_line_chart(
             series=series,
             title=name,
             y_label=_Y_LABELS.get(name, "Value"),
             recession_bands=recession_bands,
             freq=freq,
+            events=events,
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # ── Plain-English blurb ────────────────────────────────────────────────────────────────────
-        blurb = _BLURBS.get(name)
-        if blurb:
-            st.caption(blurb)
+        # ── The current read (data-driven) ───────────────────────────────────────────────────────
+        read = _current_read(name, card["latest"], card["change"], five_yr_avg)
+        if read:
+            st.markdown(f"🔍 **The current read** — {read}")
+
+        # ── Notable events & what they mean ──────────────────────────────────────────────────────
+        if events:
+            with st.expander(f"📌 Notable events & what they mean ({len(events)})", expanded=True):
+                st.caption(
+                    "Hand-written explanations for the biggest moves on this chart — the colored "
+                    "dots above mark each one. Widen the date range (try **Max**) to surface more."
+                )
+                for j, e in enumerate(events):
+                    _render_event(e)
+                    if j < len(events) - 1:
+                        st.divider()
+        else:
+            st.caption(
+                "ℹ️ No curated events fall in this window — widen the date range (e.g. **Max**) to "
+                "see historic episodes like the 1980s Volcker shock or the 2008 financial crisis."
+            )
 
         # ── CSV export ──────────────────────────────────────────────────────────────────────────────
         series_id = INDICATORS[name]

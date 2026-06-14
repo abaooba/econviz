@@ -6,6 +6,8 @@ Produces Plotly figures and summary statistics consumed by the Streamlit app.
 import pandas as pd
 import plotly.graph_objects as go
 
+from src.events import CATEGORY_STYLE
+
 # Maps pandas frequency alias -> (tickformat, dtick) for Plotly x-axis.
 _FREQ_TICK: dict[str, tuple[str, str | None]] = {
     "MS": ("%b %Y", None),
@@ -20,11 +22,15 @@ def make_line_chart(
     y_label: str,
     recession_bands: list[dict],
     freq: str = "MS",
+    events: list[dict] | None = None,
 ) -> go.Figure:
     """Build a line chart with hover tooltips and NBER recession shading.
 
     Recession periods are drawn as semi-transparent red vertical bands using
-    add_vrect, layered below the data line.
+    add_vrect, layered below the data line. If ``events`` is provided, a small
+    marker is snapped onto the line at each event's date, colored by category,
+    with the event title + one-liner on hover. Passing no events yields exactly
+    the same clean chart as before.
     """
     fig = go.Figure()
 
@@ -49,6 +55,41 @@ def make_line_chart(
             layer="below",
             line_width=0,
         )
+
+    if events and not series.empty:
+        ex, ey, ecolor, ecustom = [], [], [], []
+        lo, hi = series.index.min(), series.index.max()
+        for e in events:
+            ts = pd.Timestamp(e["date"])
+            if ts < lo or ts > hi:
+                continue
+            pos = series.index.get_indexer([ts], method="nearest")
+            if len(pos) == 0 or pos[0] == -1:
+                continue
+            i = pos[0]
+            ex.append(series.index[i])
+            ey.append(float(series.iloc[i]))
+            ecolor.append(CATEGORY_STYLE.get(e.get("category", ""), {}).get("color", "#666"))
+            ecustom.append([e["title"], e["short"]])
+        if ex:
+            fig.add_trace(
+                go.Scatter(
+                    x=ex,
+                    y=ey,
+                    mode="markers",
+                    name="Notable event",
+                    marker=dict(
+                        size=10,
+                        color=ecolor,
+                        symbol="circle",
+                        line=dict(color="white", width=1.5),
+                        opacity=0.95,
+                    ),
+                    customdata=ecustom,
+                    hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+                    showlegend=False,
+                )
+            )
 
     tick_fmt, dtick = _FREQ_TICK.get(freq, ("%b %Y", None))
     xaxis_cfg: dict = dict(
