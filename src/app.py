@@ -20,7 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from src.charts import make_comparison_chart, make_line_chart, make_summary_card
-from src.fetch import fetch_indicator, fetch_recession_bands
+from src.fetch import clip_bands_to_window, fetch_indicator, fetch_recession_bands
 from src.indicators import INDICATORS
 from src.transform import compute_yoy_change, resample_series
 
@@ -118,8 +118,12 @@ if not selected:
     st.stop()
 
 # ── Recession bands (shared by all charts) ───────────────────────────────────────────────────────
+# Full NBER history is fetched once and cached; clip to the visible window so
+# off-range shapes never stretch a chart's auto x-axis.
 with st.spinner("Fetching data from FRED…"):
-    recession_bands = fetch_recession_bands(start_str, end_str)
+    recession_bands = clip_bands_to_window(
+        fetch_recession_bands(start_str, end_str), start_str, end_str
+    )
 
 # ── Per-indicator metadata ───────────────────────────────────────────────────────────────────
 _Y_LABELS = {

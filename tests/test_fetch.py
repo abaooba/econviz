@@ -8,7 +8,12 @@ import pandas as pd
 import pytest
 from unittest.mock import patch
 
-from src.fetch import fetch_recession_bands, fetch_series
+from src.fetch import (
+    clip_bands_to_window,
+    fetch_indicator,
+    fetch_recession_bands,
+    fetch_series,
+)
 
 
 def _usrec(pattern: list) -> pd.Series:
@@ -63,3 +68,42 @@ class TestFetchRecessionBands:
         for band in result:
             assert isinstance(band, dict)
             assert set(band.keys()) == {"start", "end"}
+
+
+class TestFetchIndicatorSlicing:
+    """fetch_indicator slices a once-fetched full series in memory."""
+
+    @staticmethod
+    def _full_series() -> pd.Series:
+        idx = pd.date_range("2010-01-01", periods=120, freq="MS")
+        return pd.Series(range(120), index=idx, dtype=float)
+
+    def test_slices_to_requested_window(self):
+        with patch("src.fetch._load_full_series", return_value=self._full_series()):
+            out = fetch_indicator("Unemployment Rate (%)", "2012-01-01", "2012-12-31")
+        assert out.index.min() >= pd.Timestamp("2012-01-01")
+        assert out.index.max() <= pd.Timestamp("2012-12-31")
+        assert len(out) == 12
+
+    def test_raises_when_window_has_no_data(self):
+        with patch("src.fetch._load_full_series", return_value=self._full_series()):
+            with pytest.raises(RuntimeError):
+                fetch_indicator("Unemployment Rate (%)", "1990-01-01", "1990-12-31")
+
+
+class TestClipBandsToWindow:
+    def test_keeps_and_clamps_band_starting_before_window(self):
+        bands = [{"start": pd.Timestamp("2007-12-01"), "end": pd.Timestamp("2009-06-01")}]
+        out = clip_bands_to_window(bands, "2008-01-01", "2026-01-01")
+        assert len(out) == 1
+        assert out[0]["start"] == pd.Timestamp("2008-01-01")  # clamped up to window start
+        assert out[0]["end"] == pd.Timestamp("2009-06-01")
+
+    def test_clamps_band_extending_past_window_end(self):
+        bands = [{"start": pd.Timestamp("2020-01-01"), "end": pd.Timestamp("2030-01-01")}]
+        out = clip_bands_to_window(bands, "2015-01-01", "2025-01-01")
+        assert out[0]["end"] == pd.Timestamp("2025-01-01")
+
+    def test_drops_band_entirely_outside_window(self):
+        bands = [{"start": pd.Timestamp("1990-01-01"), "end": pd.Timestamp("1991-01-01")}]
+        assert clip_bands_to_window(bands, "2000-01-01", "2010-01-01") == []
