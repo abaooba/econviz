@@ -176,6 +176,17 @@ _UNITS = {
     "Consumer Sentiment": "",
 }
 
+# Plain-English definitions surfaced in a glossary expander at the foot of the page,
+# so the jargon on every chart (recession bands, YoY, NBER) is one click from anywhere.
+GLOSSARY = {
+    "Recession": "A significant, broad decline in economic activity. U.S. recessions are dated by the NBER and shown as red bands on every chart.",
+    "GDP": "Gross Domestic Product — the total value of everything the economy produces. 'Real' GDP is adjusted for inflation.",
+    "CPI / Inflation": "The Consumer Price Index tracks the average price of a basket of consumer goods. Inflation is how fast that index rises.",
+    "YoY (year-over-year)": "A value compared with the same month a year earlier — e.g. inflation of 3% means prices are 3% higher than 12 months ago.",
+    "Federal Funds Rate": "The overnight interest rate the Federal Reserve targets to steer the economy; it ripples out to mortgages, loans, and savings rates.",
+    "NBER": "The National Bureau of Economic Research — the semi-official arbiter that declares when U.S. recessions begin and end.",
+}
+
 
 def _to_csv_bytes(series: pd.Series, col_name: str) -> bytes:
     df = series.rename(col_name).to_frame()
@@ -347,6 +358,9 @@ with tabs[-1]:
                 value=f"{corr:.3f}",
             )
 
+        events_a = events_in_range(choice_a, start_str, end_str)
+        events_b = events_in_range(choice_b, start_str, end_str)
+
         fig = make_comparison_chart(
             series_a=series_a,
             series_b=series_b,
@@ -354,8 +368,23 @@ with tabs[-1]:
             label_b=choice_b,
             recession_bands=recession_bands,
             freq=freq,
+            events_a=events_a,
+            events_b=events_b,
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        # Surface the same curated explanations on the Compare view so the markers
+        # aren't mysterious dots — group them under each indicator's name.
+        compare_events = [(choice_a, events_a), (choice_b, events_b)]
+        if any(evs for _, evs in compare_events):
+            with st.expander("📌 What the dots mean — notable events on this chart", expanded=False):
+                for label, evs in compare_events:
+                    if not evs:
+                        continue
+                    st.markdown(f"**{label}**")
+                    for e in evs:
+                        _render_event(e)
+                    st.divider()
 
         # ── Combined CSV export ───────────────────────────────────────────────────────────────────
         if not series_a.empty and not series_b.empty:
@@ -371,6 +400,11 @@ with tabs[-1]:
                 mime="text/csv",
                 key="dl_compare",
             )
+
+# ── Glossary (always available, below the tabs) ──────────────────────────────────────────
+with st.expander("📖 Glossary — key terms in plain English"):
+    for term, definition in GLOSSARY.items():
+        st.markdown(f"**{term}** — {definition}")
 
 # ── Footer ──────────────────────────────────────────────────────────────────────────────
 st.markdown("---")

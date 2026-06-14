@@ -16,6 +16,57 @@ _FREQ_TICK: dict[str, tuple[str, str | None]] = {
 }
 
 
+def _event_marker_trace(
+    series: pd.Series,
+    events: list[dict] | None,
+    yaxis: str = "y",
+    label: str | None = None,
+) -> go.Scatter | None:
+    """Build a Scatter of category-colored dots snapped onto the line at event dates.
+
+    Each marker sits on the observation nearest the event date and carries the
+    event headline + one-liner on hover. ``yaxis`` targets the axis to ride ("y1"/
+    "y2" on a dual-axis compare chart); ``label`` prefixes the hover so a viewer
+    knows which series a dot belongs to. Returns None when there's nothing to plot.
+    """
+    if not events or series.empty:
+        return None
+    ex, ey, ecolor, ecustom = [], [], [], []
+    lo, hi = series.index.min(), series.index.max()
+    for e in events:
+        ts = pd.Timestamp(e["date"])
+        if ts < lo or ts > hi:
+            continue
+        pos = series.index.get_indexer([ts], method="nearest")
+        if len(pos) == 0 or pos[0] == -1:
+            continue
+        i = pos[0]
+        ex.append(series.index[i])
+        ey.append(float(series.iloc[i]))
+        ecolor.append(CATEGORY_STYLE.get(e.get("category", ""), {}).get("color", "#666"))
+        headline = f"{label} — {e['title']}" if label else e["title"]
+        ecustom.append([headline, e["short"]])
+    if not ex:
+        return None
+    return go.Scatter(
+        x=ex,
+        y=ey,
+        mode="markers",
+        name="Notable event",
+        marker=dict(
+            size=10,
+            color=ecolor,
+            symbol="circle",
+            line=dict(color="white", width=1.5),
+            opacity=0.95,
+        ),
+        customdata=ecustom,
+        hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
+        showlegend=False,
+        yaxis=yaxis,
+    )
+
+
 def make_line_chart(
     series: pd.Series,
     title: str,
@@ -56,40 +107,9 @@ def make_line_chart(
             line_width=0,
         )
 
-    if events and not series.empty:
-        ex, ey, ecolor, ecustom = [], [], [], []
-        lo, hi = series.index.min(), series.index.max()
-        for e in events:
-            ts = pd.Timestamp(e["date"])
-            if ts < lo or ts > hi:
-                continue
-            pos = series.index.get_indexer([ts], method="nearest")
-            if len(pos) == 0 or pos[0] == -1:
-                continue
-            i = pos[0]
-            ex.append(series.index[i])
-            ey.append(float(series.iloc[i]))
-            ecolor.append(CATEGORY_STYLE.get(e.get("category", ""), {}).get("color", "#666"))
-            ecustom.append([e["title"], e["short"]])
-        if ex:
-            fig.add_trace(
-                go.Scatter(
-                    x=ex,
-                    y=ey,
-                    mode="markers",
-                    name="Notable event",
-                    marker=dict(
-                        size=10,
-                        color=ecolor,
-                        symbol="circle",
-                        line=dict(color="white", width=1.5),
-                        opacity=0.95,
-                    ),
-                    customdata=ecustom,
-                    hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<extra></extra>",
-                    showlegend=False,
-                )
-            )
+    marker = _event_marker_trace(series, events)
+    if marker is not None:
+        fig.add_trace(marker)
 
     tick_fmt, dtick = _FREQ_TICK.get(freq, ("%b %Y", None))
     xaxis_cfg: dict = dict(
@@ -122,12 +142,16 @@ def make_comparison_chart(
     label_b: str,
     recession_bands: list[dict],
     freq: str = "MS",
+    events_a: list[dict] | None = None,
+    events_b: list[dict] | None = None,
 ) -> go.Figure:
     """Build a dual-axis line chart overlaying two economic series.
 
     Series A is plotted against the left y-axis (blue); series B against the
     right y-axis (orange). Both share the same x-axis. NBER recession bands
-    are shaded in the background.
+    are shaded in the background. If ``events_a``/``events_b`` are provided, each
+    series gets its own category-colored markers on its own axis, with a hover
+    label naming the series so the two sets stay distinguishable.
     """
     fig = go.Figure()
 
@@ -166,6 +190,16 @@ def make_comparison_chart(
             layer="below",
             line_width=0,
         )
+
+    # Each series gets its own markers on its own axis so the dots line up with the
+    # right curve; the hover label names the series to keep the two sets readable.
+    for s, evs, axis, lbl in (
+        (series_a, events_a, "y1", label_a),
+        (series_b, events_b, "y2", label_b),
+    ):
+        marker = _event_marker_trace(s, evs, yaxis=axis, label=lbl)
+        if marker is not None:
+            fig.add_trace(marker)
 
     tick_fmt, dtick = _FREQ_TICK.get(freq, ("%b %Y", None))
     xaxis_cfg: dict = dict(
